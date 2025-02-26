@@ -256,21 +256,21 @@ function initUI() {
         <button id="preset4">Plasma Warp</button>
     `;
     
-    // Add save button outside of any collapsible section
+    // Add save and export buttons outside of any collapsible section
     const saveButtonContainer = document.createElement('div');
     saveButtonContainer.className = 'save-button-container';
     
     const saveButton = document.createElement('button');
     saveButton.id = 'saveImage';
     saveButton.textContent = 'Save as Image';
+    saveButtonContainer.appendChild(saveButton);
     
     const exportButton = document.createElement('button');
     exportButton.id = 'exportCode';
     exportButton.textContent = 'Export as HTML';
     exportButton.style.marginTop = '10px';
-    
-    saveButtonContainer.appendChild(saveButton);
     saveButtonContainer.appendChild(exportButton);
+    
     sidebar.appendChild(saveButtonContainer);
     
     // Add event listeners
@@ -333,7 +333,7 @@ function initUI() {
     // Export button
     document.getElementById('exportCode').addEventListener('click', exportShaderCode);
     
-    // Add event listeners for presets
+    // Preset button listeners
     document.getElementById('preset1').addEventListener('click', function() {
         loadPreset({
             noiseType: 'cosine',
@@ -354,34 +354,92 @@ function initUI() {
         });
     });
     
-    // Similar event listeners for other presets
-    // ...
+    document.getElementById('preset2').addEventListener('click', function() {
+        loadPreset({
+            noiseType: 'fractal',
+            amplitude: 0.8,
+            frequency: 2.5,
+            speed: 0.8,
+            progress: 0.3,
+            color1: [0.1, 0.1, 0.3], // Dark blue
+            color2: [0.2, 0.4, 0.8], // Medium blue
+            color3: [0.8, 0.9, 1.0], // Light blue
+            enableDeform: true,
+            deformAmount: 0.5,
+            deformFrequency: 1.5,
+            perspective: 0.7,
+            directionX: 0.7,
+            directionY: 0.3,
+            useColorMap: false
+        });
+    });
+    
+    document.getElementById('preset3').addEventListener('click', function() {
+        loadPreset({
+            noiseType: 'voronoi',
+            amplitude: 1.0,
+            frequency: 4.0,
+            speed: 0.4,
+            progress: 0.5,
+            color1: [0.1, 0.5, 0.1], // Dark green
+            color2: [0.6, 0.3, 0.7], // Purple
+            color3: [0.9, 0.8, 0.2], // Yellow
+            enableDeform: true,
+            deformAmount: 0.4,
+            deformFrequency: 3.0,
+            perspective: 0.4,
+            directionX: 0.2,
+            directionY: 0.8,
+            useColorMap: false
+        });
+    });
+    
+    document.getElementById('preset4').addEventListener('click', function() {
+        loadPreset({
+            noiseType: 'warpFbm',
+            amplitude: 1.5,
+            frequency: 2.0,
+            speed: 0.6,
+            progress: 0.7,
+            color1: [0.8, 0.2, 0.8], // Pink
+            color2: [0.2, 0.8, 0.8], // Cyan
+            color3: [0.8, 0.8, 0.2], // Yellow
+            enableDeform: false,
+            deformAmount: 0.0,
+            deformFrequency: 1.0,
+            perspective: 0.5,
+            directionX: 0.5,
+            directionY: 0.5,
+            useColorMap: true
+        });
+    });
 }
 
-// Set up WebGL
+// Initialize WebGL
 function initWebGL() {
     try {
-        gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    } catch (e) {
-        console.error('Could not initialize WebGL:', e);
-        displayError('WebGL initialization failed: ' + e.message);
-        return;
-    }
-    
-    if (!gl) {
-        const errorMsg = 'Unable to initialize WebGL. Your browser may not support it.';
-        alert(errorMsg);
-        displayError(errorMsg);
-        return;
-    }
-    
-    // Add more explicit checking
-    try {
+        // Create WebGL context with preserveDrawingBuffer option
+        gl = canvas.getContext('webgl', { preserveDrawingBuffer: true }) || 
+             canvas.getContext('experimental-webgl', { preserveDrawingBuffer: true });
+            
+        if (!gl) {
+            console.error('WebGL not supported');
+            showFallbackMessage();
+            return;
+        }
+        
+        // Initialize shaders
         initShaders();
+        
+        // Set up a full-screen quad
         initBuffers();
+        
+        // Set canvas size
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
     } catch (e) {
-        console.error('Error during setup:', e);
-        displayError('Setup error: ' + e.message);
+        console.error('WebGL initialization failed:', e);
+        showFallbackMessage();
     }
 }
 
@@ -675,13 +733,40 @@ function randomizeSettings() {
     render();
 }
 
-// Save canvas as an image
+// Save canvas as an image using the simplest possible approach
 function saveCanvasAsImage() {
-    const dataURL = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = 'shader-gradient-' + Date.now() + '.png';
-    link.href = dataURL;
-    link.click();
+    try {
+        // Add visual feedback
+        const saveBtn = document.getElementById('saveImage');
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = 'Saving...';
+        saveBtn.style.backgroundColor = '#f38ba8';
+        
+        // Force a render to ensure we have the latest state
+        render();
+        
+        // Use the canvas directly - this works because we set preserveDrawingBuffer: true
+        const dataURL = canvas.toDataURL('image/png');
+        
+        // Create a download link
+        const link = document.createElement('a');
+        link.download = `noise_gradient_${state.noiseType}_${Date.now()}.png`;
+        link.href = dataURL;
+        
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Reset the button
+        setTimeout(() => {
+            saveBtn.textContent = originalText;
+            saveBtn.style.backgroundColor = '';
+        }, 500);
+    } catch (error) {
+        console.error('Error saving image:', error);
+        alert('Failed to save image. Error: ' + error.message);
+    }
 }
 
 // Helper: Convert hex color to RGB array
@@ -722,7 +807,7 @@ function displayError(message) {
     container.appendChild(errorDiv);
 }
 
-// Update the loadPreset function to handle all state properties
+// Update the loadPreset function to properly handle all state properties
 function loadPreset(settings) {
     // Apply all settings to state
     for (const key in settings) {
@@ -766,193 +851,36 @@ function loadPreset(settings) {
     }
     
     // Refresh direction pad if it exists
-    const directionPad = document.getElementById('directionPad');
-    if (directionPad) {
-        const canvas = directionPad;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-            const width = canvas.width;
-            const height = canvas.height;
-            const centerX = width / 2;
-            const centerY = height / 2;
-            const radius = Math.min(width, height) / 2 - 10;
-            
-            // Clear canvas
-            ctx.clearRect(0, 0, width, height);
-            
-            // Draw outer circle
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#45475a';
-            ctx.fill();
-            ctx.strokeStyle = '#74c7ec';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            // Draw crosshair
-            ctx.beginPath();
-            ctx.moveTo(centerX - radius, centerY);
-            ctx.lineTo(centerX + radius, centerY);
-            ctx.moveTo(centerX, centerY - radius);
-            ctx.lineTo(centerX, centerY + radius);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-            
-            // Draw direction line
-            const dirX = centerX + state.directionX * radius;
-            const dirY = centerY + state.directionY * radius;
-            
-            ctx.beginPath();
-            ctx.moveTo(centerX, centerY);
-            ctx.lineTo(dirX, dirY);
-            ctx.strokeStyle = '#f38ba8';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-            
-            // Draw handle
-            ctx.beginPath();
-            ctx.arc(dirX, dirY, 8, 0, Math.PI * 2);
-            ctx.fillStyle = '#f38ba8';
-            ctx.fill();
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
-    }
+    updateDirectionPad();
     
     // Reinitialize the shaders if noise type changed
     initShaders();
 }
 
-// Create a knob element and add it to the DOM
-function createKnob(id, label, min, max, value, step, onChange) {
-    const container = document.createElement('div');
-    container.className = 'knob-container';
-    
-    const knob = document.createElement('div');
-    knob.className = 'knob';
-    knob.id = id + '-knob';
-    
-    const labelEl = document.createElement('div');
-    labelEl.className = 'knob-label';
-    labelEl.textContent = label;
-    
-    const valueEl = document.createElement('div');
-    valueEl.className = 'knob-value';
-    valueEl.id = id + '-value';
-    valueEl.textContent = value.toFixed(step < 0.1 ? 2 : 1);
-    
-    container.appendChild(knob);
-    container.appendChild(labelEl);
-    container.appendChild(valueEl);
-    
-    // Store the knob data
-    knob.dataset.min = min;
-    knob.dataset.max = max;
-    knob.dataset.value = value;
-    knob.dataset.step = step;
-    
-    // Set initial rotation
-    const angle = valueToAngle(value, min, max);
-    knob.style.transform = `rotate(${angle}deg)`;
-    
-    // Add event listeners
-    knob.addEventListener('mousedown', handleKnobInteraction);
-    knob.addEventListener('touchstart', handleKnobInteraction, { passive: false });
-    
-    // Store the callback
-    knob.dataset.callback = id;
-    knobCallbacks[id] = onChange;
-    
-    return container;
-}
-
-// Convert a value to an angle (0-270 degrees)
-function valueToAngle(value, min, max) {
-    return ((value - min) / (max - min)) * 270 - 135;
-}
-
-// Convert an angle to a value
-function angleToValue(angle, min, max, step) {
-    // Normalize angle to 0-270 range
-    angle = (angle + 135) % 360;
-    if (angle < 0) angle += 360;
-    if (angle > 270) angle = 270;
-    
-    // Convert to value
-    let value = min + (angle / 270) * (max - min);
-    
-    // Round to step
-    value = Math.round(value / step) * step;
-    return Math.min(Math.max(min, value), max);
-}
-
-// Store callbacks for knobs
-const knobCallbacks = {};
-
-// Handle knob interaction
-function handleKnobInteraction(e) {
-    e.preventDefault();
-    
-    const knob = e.target;
-    const min = parseFloat(knob.dataset.min);
-    const max = parseFloat(knob.dataset.max);
-    const step = parseFloat(knob.dataset.step);
-    const callback = knob.dataset.callback;
-    
-    const knobRect = knob.getBoundingClientRect();
-    const knobCenterX = knobRect.left + knobRect.width / 2;
-    const knobCenterY = knobRect.top + knobRect.height / 2;
-    
-    function moveHandler(e) {
-        // Get mouse/touch position
-        const clientX = e.clientX || e.touches[0].clientX;
-        const clientY = e.clientY || e.touches[0].clientY;
+// Helper function to update knob UI
+function updateKnobUI(id, value) {
+    const knob = document.getElementById(id + '-knob');
+    if (knob) {
+        const min = parseFloat(knob.dataset.min);
+        const max = parseFloat(knob.dataset.max);
         
-        // Calculate angle
-        const deltaX = clientX - knobCenterX;
-        const deltaY = clientY - knobCenterY;
-        const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI) + 90;
+        // Update rotation
+        const angle = valueToAngle(value, min, max);
+        knob.style.transform = `rotate(${angle}deg)`;
         
-        // Convert angle to value
-        const value = angleToValue(angle, min, max, step);
-        
-        // Update knob rotation
-        knob.style.transform = `rotate(${valueToAngle(value, min, max)}deg)`;
-        
-        // Update value display
-        document.getElementById(callback + '-value').textContent = value.toFixed(step < 0.1 ? 2 : 1);
-        
-        // Store the value
-        knob.dataset.value = value;
-        
-        // Call the callback
-        if (knobCallbacks[callback]) {
-            knobCallbacks[callback](value);
+        // Update displayed value
+        const valueEl = document.getElementById(id + '-value');
+        if (valueEl) {
+            const step = parseFloat(knob.dataset.step);
+            valueEl.textContent = value.toFixed(step < 0.1 ? 2 : 1);
         }
     }
-    
-    function upHandler() {
-        document.removeEventListener('mousemove', moveHandler);
-        document.removeEventListener('touchmove', moveHandler);
-        document.removeEventListener('mouseup', upHandler);
-        document.removeEventListener('touchend', upHandler);
-    }
-    
-    document.addEventListener('mousemove', moveHandler);
-    document.addEventListener('touchmove', moveHandler, { passive: false });
-    document.addEventListener('mouseup', upHandler);
-    document.addEventListener('touchend', upHandler);
-    
-    // Initial position
-    moveHandler(e);
 }
 
-// Improve the direction pad initialization
-function initDirectionPad() {
+// Helper function to update direction pad
+function updateDirectionPad() {
     const canvas = document.getElementById('directionPad');
-    if (!canvas) return; // Skip if canvas doesn't exist yet
+    if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -963,111 +891,47 @@ function initDirectionPad() {
     const centerY = height / 2;
     const radius = Math.min(width, height) / 2 - 10;
     
-    // Drawing function (existing code)
-    function drawPad() {
-        // Clear canvas
-        ctx.clearRect(0, 0, width, height);
-        
-        // Draw outer circle
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#45475a';
-        ctx.fill();
-        ctx.strokeStyle = '#74c7ec';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        // Draw crosshair
-        ctx.beginPath();
-        ctx.moveTo(centerX - radius, centerY);
-        ctx.lineTo(centerX + radius, centerY);
-        ctx.moveTo(centerX, centerY - radius);
-        ctx.lineTo(centerX, centerY + radius);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        
-        // Draw direction line
-        const dirX = centerX + state.directionX * radius;
-        const dirY = centerY + state.directionY * radius;
-        
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.lineTo(dirX, dirY);
-        ctx.strokeStyle = '#f38ba8';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        
-        // Draw handle
-        ctx.beginPath();
-        ctx.arc(dirX, dirY, 8, 0, Math.PI * 2);
-        ctx.fillStyle = '#f38ba8';
-        ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-    }
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
     
-    function updateDirection(x, y) {
-        // Convert to -1 to 1 range
-        const dx = (x - centerX) / radius;
-        const dy = (y - centerY) / radius;
-        
-        // Normalize if beyond unit circle
-        const length = Math.sqrt(dx * dx + dy * dy);
-        if (length > 1) {
-            state.directionX = dx / length;
-            state.directionY = dy / length;
-        } else {
-            state.directionX = dx;
-            state.directionY = dy;
-        }
-        
-        // Update display
-        document.getElementById('directionValue').textContent = 
-            `X: ${state.directionX.toFixed(2)}, Y: ${state.directionY.toFixed(2)}`;
-        
-        // Redraw
-        drawPad();
-    }
+    // Draw outer circle
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#45475a';
+    ctx.fill();
+    ctx.strokeStyle = '#74c7ec';
+    ctx.lineWidth = 2;
+    ctx.stroke();
     
-    // Clear any existing listeners to avoid duplicates
-    canvas.removeEventListener('mousedown', handleStart);
-    canvas.removeEventListener('touchstart', handleStart);
+    // Draw crosshair
+    ctx.beginPath();
+    ctx.moveTo(centerX - radius, centerY);
+    ctx.lineTo(centerX + radius, centerY);
+    ctx.moveTo(centerX, centerY - radius);
+    ctx.lineTo(centerX, centerY + radius);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
     
-    // Handle mouse/touch events
-    function handleStart(e) {
-        e.preventDefault();
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-        const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-        updateDirection(x, y);
-        
-        function handleMove(e) {
-            e.preventDefault();
-            const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-            const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-            updateDirection(x, y);
-        }
-        
-        function handleEnd() {
-            document.removeEventListener('mousemove', handleMove);
-            document.removeEventListener('touchmove', handleMove);
-            document.removeEventListener('mouseup', handleEnd);
-            document.removeEventListener('touchend', handleEnd);
-        }
-        
-        document.addEventListener('mousemove', handleMove);
-        document.addEventListener('touchmove', handleMove, { passive: false });
-        document.addEventListener('mouseup', handleEnd);
-        document.addEventListener('touchend', handleEnd);
-    }
+    // Draw direction line
+    const dirX = centerX + state.directionX * radius;
+    const dirY = centerY + state.directionY * radius;
     
-    canvas.addEventListener('mousedown', handleStart);
-    canvas.addEventListener('touchstart', handleStart, { passive: false });
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY);
+    ctx.lineTo(dirX, dirY);
+    ctx.strokeStyle = '#f38ba8';
+    ctx.lineWidth = 3;
+    ctx.stroke();
     
-    // Initial draw
-    drawPad();
+    // Draw handle
+    ctx.beginPath();
+    ctx.arc(dirX, dirY, 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#f38ba8';
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
 }
 
 // Animation control
@@ -1102,31 +966,41 @@ function stopAnimation() {
 
 // Add this function for exporting the current shader setup
 function exportShaderCode() {
-    // Get the current shader code based on the noise type
-    let fragmentShaderCode;
-    switch (state.noiseType) {
-        case 'perlin':
-            fragmentShaderCode = createFragmentShader(shaderLib.perlinShader);
-            break;
-        case 'simplex':
-            fragmentShaderCode = createFragmentShader(shaderLib.simplexShader);
-            break;
-        case 'voronoi':
-            fragmentShaderCode = createFragmentShader(shaderLib.voronoiShader);
-            break;
-        case 'fractal':
-            fragmentShaderCode = createFragmentShader(shaderLib.fractalShader);
-            break;
-        case 'warpFbm':
-            fragmentShaderCode = createFragmentShader(shaderLib.warpFbmShader);
-            break;
-        case 'cosine':
-        default:
-            fragmentShaderCode = createFragmentShader(shaderLib.cosineShader);
-    }
-    
-    // Create a minimal HTML file with the current setup
-    const exportCode = `<!DOCTYPE html>
+    try {
+        // Add visual feedback
+        const exportBtn = document.getElementById('exportCode');
+        const originalText = exportBtn.textContent;
+        exportBtn.textContent = 'Exporting...';
+        exportBtn.style.backgroundColor = '#74c7ec';
+        
+        // Get the vertex shader source
+        const vertexShaderSource = shaderLib.vertexShader;
+        
+        // Get the fragment shader source based on the noise type
+        let fragmentShaderSource;
+        switch (state.noiseType) {
+            case 'perlin':
+                fragmentShaderSource = createFragmentShader(shaderLib.perlinShader);
+                break;
+            case 'simplex':
+                fragmentShaderSource = createFragmentShader(shaderLib.simplexShader);
+                break;
+            case 'voronoi':
+                fragmentShaderSource = createFragmentShader(shaderLib.voronoiShader);
+                break;
+            case 'fractal':
+                fragmentShaderSource = createFragmentShader(shaderLib.fractalShader);
+                break;
+            case 'warpFbm':
+                fragmentShaderSource = createFragmentShader(shaderLib.warpFbmShader);
+                break;
+            case 'cosine':
+            default:
+                fragmentShaderSource = createFragmentShader(shaderLib.cosineShader);
+        }
+        
+        // Create a minimal HTML file with the current setup
+        const exportCode = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1165,10 +1039,10 @@ function exportShaderCode() {
         let time = 0;
         
         // Vertex shader
-        const vertexShaderSource = \`${shaderLib.vertexShader}\`;
+        const vertexShaderSource = \`${vertexShaderSource}\`;
         
         // Fragment shader
-        const fragmentShaderSource = \`${fragmentShaderCode}\`;
+        const fragmentShaderSource = \`${fragmentShaderSource}\`;
         
         // Initialize when the page loads
         window.onload = function() {
@@ -1284,15 +1158,275 @@ function exportShaderCode() {
     </script>
 </body>
 </html>`;
+        
+        // Create a download link
+        const blob = new Blob([exportCode], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `noise_gradient_${state.noiseType}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Reset the button
+        setTimeout(() => {
+            exportBtn.textContent = originalText;
+            exportBtn.style.backgroundColor = '';
+        }, 500);
+    } catch (error) {
+        console.error('Error exporting code:', error);
+        alert('Failed to export code. Error: ' + error.message);
+    }
+}
+
+// Initialize random targets for the agent to move towards
+function initAgentTargets() {
+    // Create random targets within valid ranges
+    state.agentTarget = {
+        amplitude: Math.random() * 2,
+        frequency: Math.random() * 10,
+        progress: Math.random(),
+        directionX: Math.random() * 2 - 1,
+        directionY: Math.random() * 2 - 1,
+        deformAmount: Math.random(),
+        deformFrequency: Math.random() * 5,
+        perspective: Math.random(),
+        // Color targets
+        color1: [Math.random(), Math.random(), Math.random()],
+        color2: [Math.random(), Math.random(), Math.random()],
+        color3: [Math.random(), Math.random(), Math.random()]
+    };
     
-    // Create a download link
-    const blob = new Blob([exportCode], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `noise_gradient_${state.noiseType}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Normalize direction vector
+    const length = Math.sqrt(
+        state.agentTarget.directionX * state.agentTarget.directionX + 
+        state.agentTarget.directionY * state.agentTarget.directionY
+    );
+    if (length > 0) {
+        state.agentTarget.directionX /= length;
+        state.agentTarget.directionY /= length;
+    }
+    
+    // Reset timer
+    state.agentTimer = 0;
+}
+
+// Linear interpolation helper
+function lerp(start, end, t) {
+    if (Array.isArray(start)) {
+        return start.map((val, idx) => lerp(val, end[idx], t));
+    }
+    return start + (end - start) * t;
+}
+
+// Update agent parameters
+function updateAgent() {
+    // Increment agent timer
+    state.agentTimer += state.agentSpeed;
+    
+    // Set new targets periodically
+    if (state.agentTimer > 1) {
+        initAgentTargets();
+        
+        // Random chance to change noise type
+        if (Math.random() < 0.2) {
+            const noiseTypes = ['cosine', 'perlin', 'simplex', 'voronoi', 'fractal', 'warpFbm'];
+            const newNoiseType = noiseTypes[Math.floor(Math.random() * noiseTypes.length)];
+            
+            if (newNoiseType !== state.noiseType) {
+                state.noiseType = newNoiseType;
+                document.getElementById('noiseType').value = state.noiseType;
+                initShaders();
+            }
+        }
+        
+        // Random chance to toggle deformation
+        if (Math.random() < 0.3) {
+            state.enableDeform = !state.enableDeform;
+            document.getElementById('enableDeform').checked = state.enableDeform;
+        }
+        
+        // Random chance to toggle color map
+        if (Math.random() < 0.3) {
+            state.useColorMap = !state.useColorMap;
+            document.getElementById('useColorMap').checked = state.useColorMap;
+        }
+    }
+    
+    // Interpolate between current values and target values
+    const t = Math.min(state.agentSpeed * 10, 0.05); // How quickly to move toward targets
+    
+    state.amplitude = lerp(state.amplitude, state.agentTarget.amplitude, t);
+    state.frequency = lerp(state.frequency, state.agentTarget.frequency, t);
+    state.progress = lerp(state.progress, state.agentTarget.progress, t);
+    state.directionX = lerp(state.directionX, state.agentTarget.directionX, t);
+    state.directionY = lerp(state.directionY, state.agentTarget.directionY, t);
+    
+    if (state.enableDeform) {
+        state.deformAmount = lerp(state.deformAmount, state.agentTarget.deformAmount, t);
+        state.deformFrequency = lerp(state.deformFrequency, state.agentTarget.deformFrequency, t);
+        state.perspective = lerp(state.perspective, state.agentTarget.perspective, t);
+    }
+    
+    state.color1 = lerp(state.color1, state.agentTarget.color1, t);
+    state.color2 = lerp(state.color2, state.agentTarget.color2, t);
+    state.color3 = lerp(state.color3, state.agentTarget.color3, t);
+    
+    // Update UI occasionally to reflect current values
+    if (Math.random() < 0.05) {
+        updateAgentUI();
+    }
+}
+
+// Update UI to reflect agent-controlled parameters
+function updateAgentUI() {
+    // Update color inputs
+    document.getElementById('color1').value = rgbToHex(state.color1);
+    document.getElementById('color2').value = rgbToHex(state.color2);
+    document.getElementById('color3').value = rgbToHex(state.color3);
+    
+    // Update knobs
+    updateKnobUI('amplitude', state.amplitude);
+    updateKnobUI('frequency', state.frequency);
+    updateKnobUI('progress', state.progress);
+    updateKnobUI('deformAmount', state.deformAmount);
+    updateKnobUI('deformFrequency', state.deformFrequency);
+    updateKnobUI('perspective', state.perspective);
+    
+    // Update direction pad
+    const directionValue = document.getElementById('directionValue');
+    if (directionValue) {
+        directionValue.textContent = `X: ${state.directionX.toFixed(2)}, Y: ${state.directionY.toFixed(2)}`;
+    }
+    
+    // Update direction pad visual occasionally
+    if (Math.random() > 0.7) {
+        updateDirectionPad();
+    }
+}
+
+// Create a knob element and add it to the DOM
+function createKnob(id, label, min, max, value, step, onChange) {
+    const container = document.createElement('div');
+    container.className = 'knob-container';
+    
+    const knob = document.createElement('div');
+    knob.className = 'knob';
+    knob.id = id + '-knob';
+    
+    const labelEl = document.createElement('div');
+    labelEl.className = 'knob-label';
+    labelEl.textContent = label;
+    
+    const valueEl = document.createElement('div');
+    valueEl.className = 'knob-value';
+    valueEl.id = id + '-value';
+    valueEl.textContent = value.toFixed(step < 0.1 ? 2 : 1);
+    
+    container.appendChild(knob);
+    container.appendChild(labelEl);
+    container.appendChild(valueEl);
+    
+    // Store the knob data
+    knob.dataset.min = min;
+    knob.dataset.max = max;
+    knob.dataset.value = value;
+    knob.dataset.step = step;
+    
+    // Set initial rotation
+    const angle = valueToAngle(value, min, max);
+    knob.style.transform = `rotate(${angle}deg)`;
+    
+    // Add event listeners
+    knob.addEventListener('mousedown', handleKnobInteraction);
+    knob.addEventListener('touchstart', handleKnobInteraction, { passive: false });
+    
+    // Store the callback
+    knob.dataset.callback = id;
+    knobCallbacks[id] = onChange;
+    
+    return container;
+}
+
+// Convert a value to an angle (0-270 degrees)
+function valueToAngle(value, min, max) {
+    return ((value - min) / (max - min)) * 270 - 135;
+}
+
+// Convert an angle to a value
+function angleToValue(angle, min, max, step) {
+    // Normalize angle to 0-270 range
+    angle = (angle + 135) % 360;
+    if (angle < 0) angle += 360;
+    if (angle > 270) angle = 270;
+    
+    // Convert to value
+    let value = min + (angle / 270) * (max - min);
+    
+    // Round to step
+    value = Math.round(value / step) * step;
+    return Math.min(Math.max(min, value), max);
+}
+
+// Store callbacks for knobs
+const knobCallbacks = {};
+
+// Handle knob interaction
+function handleKnobInteraction(e) {
+    e.preventDefault();
+    
+    const knob = e.target;
+    const min = parseFloat(knob.dataset.min);
+    const max = parseFloat(knob.dataset.max);
+    const step = parseFloat(knob.dataset.step);
+    const callback = knob.dataset.callback;
+    
+    const knobRect = knob.getBoundingClientRect();
+    const knobCenterX = knobRect.left + knobRect.width / 2;
+    const knobCenterY = knobRect.top + knobRect.height / 2;
+    
+    function moveHandler(e) {
+        // Get mouse/touch position
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        
+        // Calculate angle
+        const deltaX = clientX - knobCenterX;
+        const deltaY = clientY - knobCenterY;
+        const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI) + 90;
+        
+        // Convert angle to value
+        const value = angleToValue(angle, min, max, step);
+        
+        // Update knob rotation
+        knob.style.transform = `rotate(${valueToAngle(value, min, max)}deg)`;
+        
+        // Update value display
+        document.getElementById(callback + '-value').textContent = value.toFixed(step < 0.1 ? 2 : 1);
+        
+        // Store the value
+        knob.dataset.value = value;
+        
+        // Call the callback
+        if (knobCallbacks[callback]) {
+            knobCallbacks[callback](value);
+        }
+    }
+    
+    function upHandler() {
+        document.removeEventListener('mousemove', moveHandler);
+        document.removeEventListener('touchmove', moveHandler);
+        document.removeEventListener('mouseup', upHandler);
+        document.removeEventListener('touchend', upHandler);
+    }
+    
+    document.addEventListener('mousemove', moveHandler);
+    document.addEventListener('touchmove', moveHandler, { passive: false });
+    document.addEventListener('mouseup', upHandler);
+    document.addEventListener('touchend', upHandler);
+    
+    // Initial position
+    moveHandler(e);
 } 
