@@ -1,0 +1,232 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #1e1e2e;
+    color: #e0e0e0;
+    line-height: 1.6;
+    overflow: hidden;
+}
+
+.container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+h1 {
+    text-align: center;
+    padding: 10px 0;
+    color: #74c7ec;
+    margin: 0;
+}
+
+.main-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.sidebar {
+    width: 280px;
+    background-color: #181825;
+    padding: 10px;
+    overflow-y: auto;
+    height: calc(100vh - 60px);
+}
+
+.canvas-container {
+    flex: 1;
+    height: calc(100vh - 60px);
+    position: relative;
+    background-color: #000;
+}
+
+canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.control-section {
+    margin-bottom: 8px;
+    border: 1px solid #3b3d54;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.section-header {
+    background-color: #313244;
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+}
+
+.section-header h2 {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #89dceb;
+}
+
+.section-content {
+    padding: 12px;
+    background-color: #2a2b3d;
+    max-height: 300px;
+    overflow-y: auto;
+    transition: max-height 0.3s ease;
+}
+
+.section-content.collapsed {
+    max-height: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.toggle-icon {
+    color: #74c7ec;
+    font-weight: bold;
+    transition: transform 0.3s;
+}
+
+.toggle-icon.collapsed {
+    transform: rotate(-90deg);
+}
+
+.controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+select, button, input[type="color"] {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    background-color: #45475a;
+    border: none;
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+button {
+    cursor: pointer;
+    background-color: #74c7ec;
+    color: #1e1e2e;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #89dceb;
+}
+
+.slider-control {
+    margin-bottom: 15px;
+}
+
+input[type="range"] {
+    width: 100%;
+    margin: 5px 0;
+}
+
+.color-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.color-input {
+    display: flex;
+    flex-direction: column;
+}
+
+input[type="color"] {
+    height: 40px;
+}
+
+.toggle-control {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.toggle-control label {
+    flex-grow: 1;
+}
+
+.toggle-control input[type="checkbox"] {
+    width: auto;
+    height: 20px;
+    width: 20px;
+}
+
+/* Styles for the direction control */
+.direction-control {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 10px;
+}
+
+#directionValue {
+    margin-top: 8px;
+    font-size: 0.9rem;
+    color: #74c7ec;
+}
+
+/* Styles for knob grid */
+.knob-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.knob-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.knob {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    position: relative;
+    background: #45475a;
+    cursor: pointer;
+    border: 3px solid #1e1e2e;
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+.knob::after {
+    content: '';
+    position: absolute;
+    width: 3px;
+    height: 40%;
+    background: #74c7ec;
+    top: 10%;
+    left: calc(50% - 1.5px);
+    border-radius: 3px;
+}
+
+.knob-label {
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.knob-value {
+    font-size: 14px;
+    margin-top: 2px;
+    color: #74c7ec;
+} 
