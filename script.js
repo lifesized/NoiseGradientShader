@@ -236,8 +236,13 @@ function initUI() {
         </div>
     `;
     
-    // Initialize direction pad
-    setTimeout(initDirectionPad, 0); // Delay to ensure the canvas is rendered
+    // Add event listener to initialize direction pad when the section is expanded
+    directionSection.querySelector('.section-header').addEventListener('click', function() {
+        const content = directionSection.querySelector('.section-content');
+        if (!content.classList.contains('collapsed')) {
+            setTimeout(initDirectionPad, 50); // Delay to ensure the canvas is rendered
+        }
+    });
     
     // Add Presets section LAST
     const { section: presetSection, content: presetContent } = createCollapsibleSection('Presets', false);
@@ -249,8 +254,24 @@ function initUI() {
         <button id="preset2">Deep Cave</button>
         <button id="preset3">Alien Terrain</button>
         <button id="preset4">Plasma Warp</button>
-        <button id="saveImage">Save as Image</button>
     `;
+    
+    // Add save button outside of any collapsible section
+    const saveButtonContainer = document.createElement('div');
+    saveButtonContainer.className = 'save-button-container';
+    
+    const saveButton = document.createElement('button');
+    saveButton.id = 'saveImage';
+    saveButton.textContent = 'Save as Image';
+    
+    const exportButton = document.createElement('button');
+    exportButton.id = 'exportCode';
+    exportButton.textContent = 'Export as HTML';
+    exportButton.style.marginTop = '10px';
+    
+    saveButtonContainer.appendChild(saveButton);
+    saveButtonContainer.appendChild(exportButton);
+    sidebar.appendChild(saveButtonContainer);
     
     // Add event listeners
     // Noise type selection
@@ -305,6 +326,36 @@ function initUI() {
             initAgentTargets();
         }
     });
+    
+    // Save image button
+    document.getElementById('saveImage').addEventListener('click', saveCanvasAsImage);
+    
+    // Export button
+    document.getElementById('exportCode').addEventListener('click', exportShaderCode);
+    
+    // Add event listeners for presets
+    document.getElementById('preset1').addEventListener('click', function() {
+        loadPreset({
+            noiseType: 'cosine',
+            amplitude: 1.2,
+            frequency: 3.0,
+            speed: 0.5,
+            progress: 0.1,
+            color1: [0.9, 0.1, 0.1], // Bright red
+            color2: [0.1, 0.8, 0.9], // Light blue
+            color3: [0.8, 0.8, 0.0], // Yellow
+            enableDeform: true,
+            deformAmount: 0.3,
+            deformFrequency: 2.0,
+            perspective: 0.5,
+            directionX: 1.0,
+            directionY: 0.5,
+            useColorMap: false
+        });
+    });
+    
+    // Similar event listeners for other presets
+    // ...
 }
 
 // Set up WebGL
@@ -671,49 +722,107 @@ function displayError(message) {
     container.appendChild(errorDiv);
 }
 
-// Add this function to load presets
+// Update the loadPreset function to handle all state properties
 function loadPreset(settings) {
-    // Update state with preset values
-    Object.assign(state, settings);
+    // Apply all settings to state
+    for (const key in settings) {
+        if (settings.hasOwnProperty(key)) {
+            state[key] = settings[key];
+        }
+    }
     
-    // Update UI to match preset
-    document.getElementById('noiseType').value = state.noiseType;
+    // Update UI to match the new values
     
-    document.getElementById('amplitude').value = state.amplitude;
-    document.getElementById('amplitudeValue').textContent = state.amplitude.toFixed(2);
+    // Update noise type select
+    const noiseSelect = document.getElementById('noiseType');
+    if (noiseSelect) {
+        noiseSelect.value = state.noiseType;
+    }
     
-    document.getElementById('frequency').value = state.frequency;
-    document.getElementById('frequencyValue').textContent = state.frequency.toFixed(1);
-    
-    document.getElementById('speed').value = state.speed;
-    document.getElementById('speedValue').textContent = state.speed.toFixed(2);
-    
-    document.getElementById('progress').value = state.progress;
-    document.getElementById('progressValue').textContent = state.progress.toFixed(2);
-    
+    // Update color inputs
     document.getElementById('color1').value = rgbToHex(state.color1);
     document.getElementById('color2').value = rgbToHex(state.color2);
     document.getElementById('color3').value = rgbToHex(state.color3);
     
-    document.getElementById('enableDeform').checked = state.enableDeform;
-    
-    document.getElementById('deformAmount').value = state.deformAmount;
-    document.getElementById('deformAmountValue').textContent = state.deformAmount.toFixed(2);
-    
-    document.getElementById('deformFrequency').value = state.deformFrequency;
-    document.getElementById('deformFrequencyValue').textContent = state.deformFrequency.toFixed(1);
-    
-    document.getElementById('perspective').value = state.perspective;
-    document.getElementById('perspectiveValue').textContent = state.perspective.toFixed(2);
-    
     // Update colormap checkbox
     document.getElementById('useColorMap').checked = state.useColorMap;
     
-    // Reinitialize shaders for the new noise type
-    initShaders();
+    // Update deformation controls
+    document.getElementById('enableDeform').checked = state.enableDeform;
     
-    // Render with new settings
-    render();
+    // Update knob positions and values
+    updateKnobUI('amplitude', state.amplitude);
+    updateKnobUI('frequency', state.frequency);
+    updateKnobUI('progress', state.progress);
+    updateKnobUI('speed', state.speed);
+    updateKnobUI('deformAmount', state.deformAmount);
+    updateKnobUI('deformFrequency', state.deformFrequency);
+    updateKnobUI('perspective', state.perspective);
+    
+    // Update direction control
+    const directionValue = document.getElementById('directionValue');
+    if (directionValue) {
+        directionValue.textContent = `X: ${state.directionX.toFixed(2)}, Y: ${state.directionY.toFixed(2)}`;
+    }
+    
+    // Refresh direction pad if it exists
+    const directionPad = document.getElementById('directionPad');
+    if (directionPad) {
+        const canvas = directionPad;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = Math.min(width, height) / 2 - 10;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+            
+            // Draw outer circle
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#45475a';
+            ctx.fill();
+            ctx.strokeStyle = '#74c7ec';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw crosshair
+            ctx.beginPath();
+            ctx.moveTo(centerX - radius, centerY);
+            ctx.lineTo(centerX + radius, centerY);
+            ctx.moveTo(centerX, centerY - radius);
+            ctx.lineTo(centerX, centerY + radius);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            
+            // Draw direction line
+            const dirX = centerX + state.directionX * radius;
+            const dirY = centerY + state.directionY * radius;
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(dirX, dirY);
+            ctx.strokeStyle = '#f38ba8';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // Draw handle
+            ctx.beginPath();
+            ctx.arc(dirX, dirY, 8, 0, Math.PI * 2);
+            ctx.fillStyle = '#f38ba8';
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+    }
+    
+    // Reinitialize the shaders if noise type changed
+    initShaders();
 }
 
 // Create a knob element and add it to the DOM
@@ -840,16 +949,21 @@ function handleKnobInteraction(e) {
     moveHandler(e);
 }
 
-// Add a direction pad control
+// Improve the direction pad initialization
 function initDirectionPad() {
     const canvas = document.getElementById('directionPad');
+    if (!canvas) return; // Skip if canvas doesn't exist yet
+    
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
     const width = canvas.width;
     const height = canvas.height;
     const centerX = width / 2;
     const centerY = height / 2;
     const radius = Math.min(width, height) / 2 - 10;
     
+    // Drawing function (existing code)
     function drawPad() {
         // Clear canvas
         ctx.clearRect(0, 0, width, height);
@@ -917,18 +1031,22 @@ function initDirectionPad() {
         drawPad();
     }
     
+    // Clear any existing listeners to avoid duplicates
+    canvas.removeEventListener('mousedown', handleStart);
+    canvas.removeEventListener('touchstart', handleStart);
+    
     // Handle mouse/touch events
     function handleStart(e) {
         e.preventDefault();
         const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX || e.touches[0].clientX) - rect.left;
-        const y = (e.clientY || e.touches[0].clientY) - rect.top;
+        const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+        const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
         updateDirection(x, y);
         
         function handleMove(e) {
             e.preventDefault();
-            const x = (e.clientX || e.touches[0].clientX) - rect.left;
-            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+            const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
             updateDirection(x, y);
         }
         
@@ -980,4 +1098,201 @@ function stopAnimation() {
         cancelAnimationFrame(animationId);
         animationId = null;
     }
+}
+
+// Add this function for exporting the current shader setup
+function exportShaderCode() {
+    // Get the current shader code based on the noise type
+    let fragmentShaderCode;
+    switch (state.noiseType) {
+        case 'perlin':
+            fragmentShaderCode = createFragmentShader(shaderLib.perlinShader);
+            break;
+        case 'simplex':
+            fragmentShaderCode = createFragmentShader(shaderLib.simplexShader);
+            break;
+        case 'voronoi':
+            fragmentShaderCode = createFragmentShader(shaderLib.voronoiShader);
+            break;
+        case 'fractal':
+            fragmentShaderCode = createFragmentShader(shaderLib.fractalShader);
+            break;
+        case 'warpFbm':
+            fragmentShaderCode = createFragmentShader(shaderLib.warpFbmShader);
+            break;
+        case 'cosine':
+        default:
+            fragmentShaderCode = createFragmentShader(shaderLib.cosineShader);
+    }
+    
+    // Create a minimal HTML file with the current setup
+    const exportCode = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noise Gradient Shader</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+    </style>
+</head>
+<body>
+    <canvas id="shaderCanvas"></canvas>
+    
+    <script>
+        // Shader parameters
+        const state = ${JSON.stringify({
+            noiseType: state.noiseType,
+            amplitude: state.amplitude,
+            frequency: state.frequency,
+            speed: state.speed,
+            progress: state.progress,
+            color1: state.color1,
+            color2: state.color2,
+            color3: state.color3,
+            enableDeform: state.enableDeform,
+            deformAmount: state.deformAmount,
+            deformFrequency: state.deformFrequency,
+            perspective: state.perspective,
+            useColorMap: state.useColorMap,
+            directionX: state.directionX,
+            directionY: state.directionY
+        }, null, 2)};
+        
+        // Initialize WebGL
+        let gl, program, canvas, animationId;
+        let time = 0;
+        
+        // Vertex shader
+        const vertexShaderSource = \`${shaderLib.vertexShader}\`;
+        
+        // Fragment shader
+        const fragmentShaderSource = \`${fragmentShaderCode}\`;
+        
+        // Initialize when the page loads
+        window.onload = function() {
+            canvas = document.getElementById('shaderCanvas');
+            initWebGL();
+            if (gl) {
+                setCanvasSize();
+                window.addEventListener('resize', setCanvasSize);
+                animate();
+            }
+        };
+        
+        // Set canvas size
+        function setCanvasSize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+        
+        // Initialize WebGL
+        function initWebGL() {
+            gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!gl) {
+                console.error('WebGL not supported');
+                return;
+            }
+            
+            // Create shaders
+            const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vertexShader, vertexShaderSource);
+            gl.compileShader(vertexShader);
+            
+            const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fragmentShader, fragmentShaderSource);
+            gl.compileShader(fragmentShader);
+            
+            // Create program
+            program = gl.createProgram();
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+            gl.linkProgram(program);
+            gl.useProgram(program);
+            
+            // Create a quad covering the whole screen
+            const positions = new Float32Array([
+                -1.0, -1.0,
+                 1.0, -1.0,
+                -1.0,  1.0,
+                 1.0,  1.0
+            ]);
+            
+            const positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+            
+            const positionLocation = gl.getAttribLocation(program, 'aVertexPosition');
+            gl.enableVertexAttribArray(positionLocation);
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+        }
+        
+        // Animation loop
+        function animate() {
+            time += state.speed * 0.016;
+            render();
+            animationId = requestAnimationFrame(animate);
+        }
+        
+        // Render frame
+        function render() {
+            // Set uniforms
+            const resolutionLocation = gl.getUniformLocation(program, 'uResolution');
+            gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
+            
+            const timeLocation = gl.getUniformLocation(program, 'uTime');
+            gl.uniform1f(timeLocation, time);
+            
+            const amplitudeLocation = gl.getUniformLocation(program, 'uAmplitude');
+            gl.uniform1f(amplitudeLocation, state.amplitude);
+            
+            const frequencyLocation = gl.getUniformLocation(program, 'uFrequency');
+            gl.uniform1f(frequencyLocation, state.frequency);
+            
+            const progressLocation = gl.getUniformLocation(program, 'uProgress');
+            gl.uniform1f(progressLocation, state.progress);
+            
+            const color1Location = gl.getUniformLocation(program, 'uColor1');
+            gl.uniform3fv(color1Location, state.color1);
+            
+            const color2Location = gl.getUniformLocation(program, 'uColor2');
+            gl.uniform3fv(color2Location, state.color2);
+            
+            const color3Location = gl.getUniformLocation(program, 'uColor3');
+            gl.uniform3fv(color3Location, state.color3);
+            
+            const deformAmountLocation = gl.getUniformLocation(program, 'uDeformAmount');
+            gl.uniform1f(deformAmountLocation, state.deformAmount);
+            
+            const deformFrequencyLocation = gl.getUniformLocation(program, 'uDeformFrequency');
+            gl.uniform1f(deformFrequencyLocation, state.deformFrequency);
+            
+            const enableDeformLocation = gl.getUniformLocation(program, 'uEnableDeform');
+            gl.uniform1i(enableDeformLocation, state.enableDeform ? 1 : 0);
+            
+            const useColorMapLocation = gl.getUniformLocation(program, 'uUseColorMap');
+            gl.uniform1i(useColorMapLocation, state.useColorMap ? 1 : 0);
+            
+            const directionLocation = gl.getUniformLocation(program, 'uDirection');
+            gl.uniform2f(directionLocation, state.directionX, state.directionY);
+            
+            // Draw the quad
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        }
+    </script>
+</body>
+</html>`;
+    
+    // Create a download link
+    const blob = new Blob([exportCode], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `noise_gradient_${state.noiseType}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 } 
