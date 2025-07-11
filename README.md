@@ -4,7 +4,7 @@ I wanted to learn how to make cool shaders and watched a few YouTube tutorials a
 
 A versatile WebGL-based tool for exploring and creating beautiful noise-based gradient shaders with real-time controls and visualization.
 
-![Noise Gradient Shader](https://github.com/lifesized/NoiseGradientShader/raw/main/screenshot.png)
+![Noise Gradient Shader]
 
 ## Overview
 
