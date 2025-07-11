@@ -1,6 +1,6 @@
 # Noise Gradient Shader Tool
 
-This is an early experiment project to learn a little about shaders and coding using LLMs. Work in progress.
+This is an early experimental project to learn a little about shaders and coding using LLMs. Work in progress.
 
 A versatile WebGL-based tool for exploring and creating beautiful noise-based gradient shaders with real-time controls and visualization.
 
